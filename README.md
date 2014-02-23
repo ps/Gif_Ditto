@@ -3,7 +3,7 @@ Gif Ditto
 
 HackTCNJ 2014
 
-A creative way to replicate a Tumblur gif
+A creative way to replicate a Tumblr gif
 
 #Issues:
 - There are some cases when it waits for users who have disconnected. We should have a time out of 60 seconds
