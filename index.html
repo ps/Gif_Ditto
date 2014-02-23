@@ -5,10 +5,27 @@
   <title></title>
   <meta name="description" content="">
   <meta name="author" content="Kevin Albertson">
+  <link href='http://fonts.googleapis.com/css?family=Hammersmith+One' rel='stylesheet' type='text/css'>
   <style type="text/css">
 	*{
 		padding: 0;
 		margin: 0;
+	}
+	body{
+		font-family: "Hammersmith One", "Arial", "Helvetica";
+		font-weight: normal;
+	}
+	h1{
+		font-size: 46px;
+	}
+	h2{
+		font-weight: normal;
+		font-size: 14px;
+		position: relative;
+		top: -10px;
+	}
+	canvas{
+		background: #D9D9D9;
 	}
 	#container{
 		width: 1000px;
@@ -16,7 +33,7 @@
 	}
 	#cnv{
 		border: 1px black solid;
-		opacity: .5;
+		opacity: .45;
 		
 	}
 	#cnv_out{
@@ -40,9 +57,10 @@
 	#main img{
 		z-index: 4;
 	}
-	#main p{
+	#main > p{
 		z-index: 3;
-		left: 300px;
+		left: 270px;
+		top: 100px;
 	}
 	#sidebar{
 		float: left;
@@ -60,12 +78,35 @@
 	}
 	#submit{
 		display: none;
-		background: #1BF234;
+		background: #15BF29;
+	}
+	.g{
+		color: #15BF29;
+	}
+	.i{
+		color: #A80000;
+	}
+	.f{
+		color: #1451BA;
 	}
 	#submit:hover{
 		background: #54FF68;
 	}
-	
+	#snap{
+		background: #A80000;
+		display: none;
+	}
+	#snap:hover{
+		background: #E84646
+	}
+	#isnap{
+		background: #1451BA;
+		display: none;
+	}
+	#isnap:hover{
+		background: #4784ED;
+	}
+
 	#countdown{
 		display: none;
 	}
@@ -82,6 +123,9 @@
 	#choices{
 		display:none;
 		z-index: 8;
+		padding: 100px;
+		width: 440px;
+		height: 280px;
 	}
 	button{
 		padding: 5px 10px;
@@ -92,12 +136,13 @@
 		display: block;
 		width: 100%;
 		cursor: pointer;
+		font-size: 14px;
 	}
 	button:hover{
 		background: #444;
 	}
 	.another{
-		color: #F00;
+		color: #A1BEE3;
 		cursor: pointer;
 	}
 
@@ -119,7 +164,8 @@
 </head>
 <body>
 	<div id="container">
-		<h1>GIF DITTO</h1>
+		<h1><span class='g'>G</span><span class="i">I</span><span class="f">F</span> DITTO</h1>
+		<h2>Collaborative animated creation</h2>
 		<div id="countdown">3</div>
 		<div id="main">
 			<div id="choices" class="overlay">
@@ -157,6 +203,7 @@
   		out_ctx.scale(30/64, 30/64);
   	var imgNum = -1;
   	var snapping = false;
+  	var socket = null;
   	//var restarting = false;
 
   	function webcamError(){
@@ -193,8 +240,8 @@
   		countDown();
   	}
   	function restart(){
-  		$("#choices").hide();
-  		$("#submit").hide();
+  		$("#choices, #submit").hide();
+  		$("#snap, #isnap").fadeIn();
   		socket.emit("image", {cmd: "request"});
   	}
   	function submit(){
@@ -210,19 +257,46 @@
   			success: function(){
   				console.log("Saved");
   			}
-  		})
+  		});
+  		$("#submit, #snap, #isnap").hide();
   		snapping = false;
   		//also alert the socket that the image has been uploaded
   		socket.emit("image", {cmd: "upload"})
   		imgNum = -1;
   		$("#frame").attr("src", "");
   	}
+
   	function onWebcam(){
   		tick();
 		$("#snap").on("click", snap);
 		$("#isnap").on("click", function(){snap(true);});
 		$("#submit").on("click", submit);
 		$("#choices .another").on("click", restart);
+		socket = io.connect('http://localhost:5000');
+		//socket.emit('image', {cmd: "request"});
+		socket.on('image', function (data) {
+			console.log(data);
+			$("#progress").html((data.numUploaded+1) + " of " + data.numImages + " frames completed.");
+			if(data.status == "waiting"){
+				//let the user know
+				$("#snap, #isnap").hide();
+				$("#status").show().html("Waiting for other users");
+			}
+			else if(data.status == "working"){
+				$("#frame").attr("src", data.path);
+				$("#snap, #isnap").fadeIn();
+				$("#status").hide();
+				imgNum = data.imgNum;
+			}
+
+		});
+
+		socket.on('sceneFinished', function(data){
+			console.log(data);
+			$("#finished").show();
+			$("#sub").attr("src", data.path);
+			$("#orig").attr("src", data.original_path);
+		});
   	}
   	function init(){
 	  	var constraints = {
@@ -244,30 +318,7 @@
 		}
 	}
 
-	var socket = io.connect('http://localhost:5000');
-	//socket.emit('image', {cmd: "request"});
-	socket.on('image', function (data) {
-		console.log(data);
-		$("#progress").html(data.numUploaded + "/" + data.numImages);
-		if(data.status == "waiting"){
-			//let the user know
-			$("#status").html("Waiting for others");
-		}
-		else if(data.status == "working"){
-			$("#frame").attr("src", data.path);
-			imgNum = data.imgNum;
-			$("#status").html("Take and send your image");
-		}
-
-	});
-
-	socket.on('sceneFinished', function(data){
-		console.log(data);
-		$("#finished").show();
-		$("#sub").attr("src", data.path);
-		$("#orig").attr("src", data.original_path);
-
-	});
+	
 	
 	$(document).ready(init);
   </script>
