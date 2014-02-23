@@ -12,11 +12,11 @@ from human_sort import *
 #def natural_keys(text):
 #	return [ atoi(c) for c in re.split('(\d+)',text)]
 #removes and renames generated frames
-def remove_gif_frames(files, directory):
+def remove_gif_frames(files, directory, remove=True):
 	d=1
 	c=1
 	for i in files:
-		if d==1:
+		if d==1 and remove:
 			#remove the frame
 			os.remove('%s/%s' % (directory,i) )
 			d=0
@@ -46,6 +46,9 @@ os.chdir(outFol)
 
 files = [f for f in os.listdir('.') if os.path.isfile(f)]
 files.sort(key=natural_keys)
+
+if len(files) <= 20:
+	remove_gif_frames(files, outFol, False)
 
 while len(files)>20:
 	print "Shrinking frame amount"
