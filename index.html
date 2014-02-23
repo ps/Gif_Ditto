@@ -48,7 +48,7 @@
 		height: 480px;
 		float: left;
 	}
-	#main canvas, #main video, #main img, #main p{
+	#main > canvas, #main > video, #main > img, #main > p{
 		position: absolute;
 		left: 0px;
 		top: 0px;
@@ -155,6 +155,17 @@
 		width: 640px;
 		height: 480px;
 	}
+
+	.yours, .theirs{
+		font-size: 16px;
+	}
+
+	#finished{
+		min-height: 440px;
+		width: 600px;
+		height: auto;
+		padding: 20px;
+	}
   </style>
 
   <!--[if lt IE 9]>
@@ -174,7 +185,9 @@
 				Or wait for other users to finish the rest of the gif
 			</div>
 			<div id="finished" class="overlay">
-				<img src="" id="orig" />
+				<p class='theirs'>Original GIF</p>
+				<img src="" id="orig" /><br/>
+				<p class='yours'>Your Duplicate</p>
 				<img src="" id="sub" />
 			</div>
 			<canvas id="cnv" width="640" height="480"></canvas>
@@ -277,7 +290,7 @@
 		//socket.emit('image', {cmd: "request"});
 		socket.on('image', function (data) {
 			console.log(data);
-			$("#progress").html((data.numUploaded+1) + " of " + data.numImages + " frames completed.");
+			$("#progress").html(data.numUploaded + " of " + data.numImages + " frames completed.");
 			if(data.status == "waiting"){
 				//let the user know
 				$("#snap, #isnap").hide();

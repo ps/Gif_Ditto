@@ -11,6 +11,7 @@ A creative way to replicate a Tumblur gif
 #TODO:
 - Decide on how to go from scene to scene [hard-code for now, add tumblr later]
 - If a user disconnects, if there are any users waiting for an image then send them the image
+- Add Tumblr
 
 #Thoughts
 - Should we store scene data or fetch and process each time there is a new scene?
