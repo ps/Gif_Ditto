@@ -4,11 +4,18 @@ import os
 import sys
 from human_sort import *
 
+iDir = "output"
+oDir = "../" #relative to input directory (change later)
+if len(sys.argv) == 3:
+	iDir = sys.argv[1]
+	oDir = sys.argv[2]
+
 orig = os.getcwd()
-p_out = '%s/output' % os.getcwd()
+p_out = '%s/%s' % (os.getcwd(), iDir)
 print p_out
 os.chdir(p_out)
 file_names = (fn for fn in os.listdir('.') if fn.endswith('.png'))
+
 
 files = []
 for f in file_names:
@@ -31,8 +38,8 @@ print writeGif.__doc__
 
 
 #images.extend(reversed(images)) #infinit loop will go backwards and forwards.
-
-filename = "%s/gif_replica.gif" % orig
+os.chdir(orig)
+filename = "%s" % oDir
 writeGif(filename, images, duration=0.2)
 #54 frames written
 #

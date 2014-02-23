@@ -4,6 +4,7 @@ Each connection will be responsible for their image until uploaded. Maybe add a 
 */
 
 var app = require('http').createServer(handler),
+exec = require("child_process").exec,
 io = require('socket.io').listen(app),
 //ws = require("websocket-server"),
 fs = require("fs"),
@@ -16,7 +17,7 @@ numUploaded = 0,
 maxScene = 0;
 
 //determine the number of scenes
-maxScene = fs.readdirSync("scenes").length;
+maxScene = 2; //fs.readdirSync("scenes").length;
 
 app.listen(port);
 console.log("HTTP server listening on port " + port);
@@ -30,6 +31,7 @@ function nextScene(first){
 		curScene = 1;
 	}
 	//determine the max images for this scene
+	exec("rm -rf scenes/" + curScene + "_submissions/*");
 	var numImages = fs.readdirSync("scenes/" + curScene).length;
 	imagesAvailable = new Array(numImages);
 	for(var i = 0; i < imagesAvailable.length; i++){
@@ -166,9 +168,14 @@ io.sockets.on('connection', function (sk) {
 			if(numUploaded == imagesAvailable.length){
 				//end of this scene
 				//compile the final gif
+				var cmd = "python gif_operations/getGif.py scenes/" + curScene + "_submissions/ scenes/output/" + curScene + ".gif";
+				exec(cmd, function(err, stdout, stderr){
+					//broadcast this to everybody and start the next scene
+					sk.broadcast.emit("sceneFinished", {path: "scenes/outputs/" + curScene + ".gif", original_path: "scenes/originals/" + curScene + ".gif" });
+				})
+
 				
-				//broadcast this to everybody and start the next scene
-				io.sockets.broadcast("sceneFinished", {path: "scenes/" + curScene + "/finished.gif", original_path: "scenes/" + curScene + "/original.gif" });
+				
 			}
 		}
 		else if(data.cmd == "request"){
