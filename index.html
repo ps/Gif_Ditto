@@ -256,12 +256,13 @@
   			},
   			success: function(){
   				console.log("Saved");
+  				//also alert the socket that the image has been uploaded
+  				socket.emit("image", {cmd: "upload"})
   			}
   		});
   		$("#submit, #snap, #isnap").hide();
   		snapping = false;
-  		//also alert the socket that the image has been uploaded
-  		socket.emit("image", {cmd: "upload"})
+  		
   		imgNum = -1;
   		$("#frame").attr("src", "");
   	}
