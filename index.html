@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <meta name="description" content="">
+  <meta name="author" content="Kevin Albertson">
+  <style type="text/css">
+	*{
+		padding: 0;
+		margin: 0;
+	}
+	#container{
+		width: 960px;
+		margin: 100px auto;
+	}
+	#cnv{
+		border: 1px black solid;
+		opacity: .5;
+		
+	}
+	#cnv_out{
+		border: 1px black solid;
+	}
+	#vid{
+		display: none;
+	}
+	#main{
+		position: relative;
+		width: 640px;
+		height: 480px;
+		float: left;
+	}
+	#main canvas, #main video, #main img, #main p{
+		position: absolute;
+		left: 0px;
+		top: 0px;
+		z-index: 5;
+	}
+	#main img{
+		z-index: 4;
+	}
+	#main p{
+		z-index: 3;
+		left: 300px;
+	}
+	#sidebar{
+		float: left;
+		width: 300px;
+	}
+	#countdown{
+		font-size: 42px;
+		text-align: center;
+		color: #F00;
+		position: absolute;
+		top: 200px;
+		left: 650px;
+		z-index: 6;
+	}
+	#submit{
+		display: none;
+	}
+	#countdown{
+		display: none;
+	}
+  </style>
+
+  <!--[if lt IE 9]>
+  <script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+  <![endif]-->
+  <script src="jquery.js"></script>
+</head>
+<body>
+	<div id="container">
+		<div id="countdown">3</div>
+		<div id="main">
+			<canvas id="cnv" width="640" height="480"></canvas>
+			<video autoplay width="640" height="480" id="vid"></video>
+			<img id="frame" src="" width="640" height="480" />
+			<p>Loading Image</p>
+		</div>
+		<aside id="sidebar">
+			<canvas id="cnv_out" width="300" height="225"></canvas>
+			<button id="snap">Snap</button>
+			<br/>
+			<button id="submit">Send</button>
+			<p id="progress"></p>
+		</aside>
+	</div>
+	<script src="/socket.io/socket.io.js"></script>
+  <script>
+  	var vid = $("#vid")[0],
+  		cnv = $("#cnv")[0],
+  		ctx = cnv.getContext("2d");
+  		ctx.translate(vid.width, 0);
+  		ctx.scale(-1,1);
+	var out = $("#cnv_out")[0];
+	var out_ctx = out.getContext("2d");
+  		out_ctx.scale(30/64, 30/64);
+  	var imgNum = -1;
+  	var snapping = false;
+
+  	function webcamError(){
+  		console.log("Error on webcam");
+  	}
+
+  	function tick(){
+  		ctx.drawImage(vid, 0, 0, vid.width, vid.height);
+  		window.setTimeout(tick, 1000/60);
+  	}
+
+  	function snap(noCount){
+  		if(snapping) return;
+  		snapping = true;
+  		var count = 3;
+  		if(noCount === true){
+  			count = 0;
+  		}
+  		function countDown(){
+  			$("#countdown").html(count);
+  			if(count <= 0){
+  				$("#submit").fadeIn();
+  				out_ctx.drawImage(cnv, 0, 0);
+  				$("#countdown").hide();
+  				snapping = false;
+  			}
+  			else{
+  				window.setTimeout(countDown, 1000);
+
+  			}
+  			count--;
+  		}
+  		$("#countdown").show();
+  		countDown();
+  	}
+
+  	function submit(){
+  		if(imgNum == -1){return;}
+  		$.ajax({
+  			url: "saveimage",
+  			type: "post",
+  			data: {
+  				imgData: out.toDataURL(),
+  				imgNum: imgNum
+  			},
+  			success: function(){
+  				console.log("Saved");
+  			}
+  		})
+  		//also alert the socket that the image has been uploaded
+  		socket.emit("image", {cmd: "upload"})
+  		imgNum = -1;
+  		$("#frame").attr("src", "");
+  	}
+  	function onWebcam(){
+  		tick();
+		$("#snap").on("click", snap);
+		$("#submit").on("click", submit);
+  	}
+  	function init(){
+	  	var constraints = {
+	  		audio: false,
+	  		video: true
+	  	}
+	  	if (navigator.getUserMedia) {
+			navigator.getUserMedia(constraints, function(stream) {
+				vid.src = stream;
+				onWebcam();
+			}, webcamError);
+		} else if (navigator.webkitGetUserMedia) {
+		         navigator.webkitGetUserMedia(constraints, function(stream) {
+				vid.src = window.webkitURL.createObjectURL(stream);
+				onWebcam();
+			}, webcamError);
+		} else {
+			console.log("Cannot initialize camera");
+		}
+	}
+
+	var socket = io.connect('http://localhost:5000');
+	//socket.emit('image', {cmd: "request"});
+	socket.on('image', function (data) {
+		console.log(data);
+		$("#progress").html(data.numUploaded + "/" + data.numImages);
+		if(data.status == "waiting"){
+			//let the user know
+		}
+		else if(data.status == "working"){
+			$("#frame").attr("src", data.path);
+			imgNum = data.imgNum;
+		}
+	});
+	
+	$(document).ready(init);
+  </script>
+</body>
+</html>
