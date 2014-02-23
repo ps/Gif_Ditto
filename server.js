@@ -17,7 +17,7 @@ numUploaded = 0,
 maxScene = 0;
 
 //determine the number of scenes
-maxScene = 2; //fs.readdirSync("scenes").length;
+maxScene = fs.readdirSync("scenes/data").length;
 
 app.listen(port);
 console.log("HTTP server listening on port " + port);
@@ -31,8 +31,8 @@ function nextScene(first){
 		curScene = 1;
 	}
 	//determine the max images for this scene
-	exec("rm -rf scenes/" + curScene + "_submissions/*");
-	var numImages = fs.readdirSync("scenes/" + curScene).length;
+	exec("rm -rf scenes/submissions/" + curScene + "/*");
+	var numImages = fs.readdirSync("scenes/data/" + curScene).length;
 	imagesAvailable = new Array(numImages);
 	for(var i = 0; i < imagesAvailable.length; i++){
 		imagesAvailable[i] = true;
@@ -55,7 +55,7 @@ function handler(req, resp){
             // use POST
            	if(POST.hasOwnProperty("imgData") && POST.hasOwnProperty("imgNum")){
 	            var base64Data = POST.imgData.replace(/^data:image\/png;base64,/,"");
-				fs.writeFile( "scenes/" + curScene + "_submissions/" + POST.imgNum + ".png", base64Data, 'base64', function(err) {
+				fs.writeFile( "scenes/submissions/" + curScene + "/" + POST.imgNum + ".png", base64Data, 'base64', function(err) {
 				  console.log(err);
 				});
 				resp.writeHead(200, {"Content-Type" : "text/plain"});
@@ -98,6 +98,9 @@ function handler(req, resp){
 			case "png":
 			type= "image/png";
 			break;
+			case "gif":
+			type="image/gif";
+			break;
 			case "jpg":
 			type= "image/jpg";
 			break;
@@ -137,15 +140,12 @@ function imageRequest(sk){
 	}
 	if(nextAvailable == -1){
 		//no more available images, let user know that the scene is finished and we are waiting for the ending gif
-		sk.set("status", "waiting");
-		sk.emit("image", {status: "waiting"});
+		sk.emit("image", {status: "waiting", numUploaded: numUploaded, numImages: imagesAvailable.length});
 	}
 	else{
 		imagesAvailable[nextAvailable-1] = false;
 		//send the current image to which this person is assigned
-		sk.set("status", "working");
-		sk.set("curImage", nextAvailable);
-		sk.emit("image", {status: 'working', imgNum: nextAvailable, path: "scenes/" + curScene + "/" + nextAvailable + ".png", numUploaded: numUploaded, numImages: imagesAvailable.length})
+		sk.emit("image", {status: 'working', imgNum: nextAvailable, path: "scenes/data/" + curScene + "/" + nextAvailable + ".png", numUploaded: numUploaded, numImages: imagesAvailable.length})
 	}
 	return nextAvailable;
 }
@@ -168,10 +168,13 @@ io.sockets.on('connection', function (sk) {
 			if(numUploaded == imagesAvailable.length){
 				//end of this scene
 				//compile the final gif
-				var cmd = "python gif_operations/getGif.py scenes/" + curScene + "_submissions/ scenes/output/" + curScene + ".gif";
+				var cmd = "python gif_operations/getGif.py scenes/submissions/" + curScene + " scenes/output/" + curScene + ".gif";
 				exec(cmd, function(err, stdout, stderr){
 					//broadcast this to everybody and start the next scene
-					sk.broadcast.emit("sceneFinished", {path: "scenes/outputs/" + curScene + ".gif", original_path: "scenes/originals/" + curScene + ".gif" });
+					var cfg = {path: "scenes/output/" + curScene + ".gif", original_path: "scenes/originals/" + curScene + ".gif" };
+					sk.broadcast.emit("sceneFinished", cfg);
+					sk.emit("sceneFinished", cfg);
+					nextScene();
 				})
 
 				
@@ -190,7 +193,7 @@ io.sockets.on('connection', function (sk) {
 			imagesAvailable[curImage-1] = true;
 		}
 		//otherwise the user was waiting, not a problem
-	})
+	});
 });
 
 nextScene(true);

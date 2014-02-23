@@ -11,7 +11,7 @@
 		margin: 0;
 	}
 	#container{
-		width: 960px;
+		width: 1000px;
 		margin: 100px auto;
 	}
 	#cnv{
@@ -47,6 +47,7 @@
 	#sidebar{
 		float: left;
 		width: 300px;
+		margin-left: 20px;
 	}
 	#countdown{
 		font-size: 42px;
@@ -59,9 +60,55 @@
 	}
 	#submit{
 		display: none;
+		background: #1BF234;
 	}
+	#submit:hover{
+		background: #54FF68;
+	}
+	
 	#countdown{
 		display: none;
+	}
+	#finished{
+		display: none;
+		position: absolute;
+		left: 0px;
+		top: 0px;
+		z-index: 10;
+		width: 640px;
+		height: 480px;
+		background: rgba(0,0,0,.8);
+	}
+	#choices{
+		display:none;
+		z-index: 8;
+	}
+	button{
+		padding: 5px 10px;
+		background: #111;
+		color: #FFF;
+		border: 0px black solid;
+		margin-bottom: 10px;
+		display: block;
+		width: 100%;
+		cursor: pointer;
+	}
+	button:hover{
+		background: #444;
+	}
+	.another{
+		color: #F00;
+		cursor: pointer;
+	}
+
+	.overlay{
+		background: rgba(0,0,0,.8);
+		color: #FFF;
+		position: absolute;
+		left: 0px;
+		top: 0px;
+		width: 640px;
+		height: 480px;
 	}
   </style>
 
@@ -72,8 +119,18 @@
 </head>
 <body>
 	<div id="container">
+		<h1>GIF DITTO</h1>
 		<div id="countdown">3</div>
 		<div id="main">
+			<div id="choices" class="overlay">
+				Now that you've contributed your frame you can either:
+				<div class="another">Take another frame</div>
+				Or wait for other users to finish the rest of the gif
+			</div>
+			<div id="finished" class="overlay">
+				<img src="" id="orig" />
+				<img src="" id="sub" />
+			</div>
 			<canvas id="cnv" width="640" height="480"></canvas>
 			<video autoplay width="640" height="480" id="vid"></video>
 			<img id="frame" src="" width="640" height="480" />
@@ -81,10 +138,11 @@
 		</div>
 		<aside id="sidebar">
 			<canvas id="cnv_out" width="300" height="225"></canvas>
-			<button id="snap">Snap</button>
+			<button id="snap">Snap</button><button id="isnap">Immediate Snap</button>
 			<br/>
 			<button id="submit">Send</button>
 			<p id="progress"></p>
+			<p id="status"></p>
 		</aside>
 	</div>
 	<script src="/socket.io/socket.io.js"></script>
@@ -99,6 +157,7 @@
   		out_ctx.scale(30/64, 30/64);
   	var imgNum = -1;
   	var snapping = false;
+  	//var restarting = false;
 
   	function webcamError(){
   		console.log("Error on webcam");
@@ -133,9 +192,14 @@
   		$("#countdown").show();
   		countDown();
   	}
-
+  	function restart(){
+  		$("#choices").hide();
+  		$("#submit").hide();
+  		socket.emit("image", {cmd: "request"});
+  	}
   	function submit(){
   		if(imgNum == -1){return;}
+  		$("#choices").show();
   		$.ajax({
   			url: "saveimage",
   			type: "post",
@@ -147,6 +211,7 @@
   				console.log("Saved");
   			}
   		})
+  		snapping = false;
   		//also alert the socket that the image has been uploaded
   		socket.emit("image", {cmd: "upload"})
   		imgNum = -1;
@@ -155,7 +220,9 @@
   	function onWebcam(){
   		tick();
 		$("#snap").on("click", snap);
+		$("#isnap").on("click", function(){snap(true);});
 		$("#submit").on("click", submit);
+		$("#choices .another").on("click", restart);
   	}
   	function init(){
 	  	var constraints = {
@@ -184,11 +251,22 @@
 		$("#progress").html(data.numUploaded + "/" + data.numImages);
 		if(data.status == "waiting"){
 			//let the user know
+			$("#status").html("Waiting for others");
 		}
 		else if(data.status == "working"){
 			$("#frame").attr("src", data.path);
 			imgNum = data.imgNum;
+			$("#status").html("Take and send your image");
 		}
+
+	});
+
+	socket.on('sceneFinished', function(data){
+		console.log(data);
+		$("#finished").show();
+		$("#sub").attr("src", data.path);
+		$("#orig").attr("src", data.original_path);
+
 	});
 	
 	$(document).ready(init);
